@@ -1,68 +1,60 @@
 const boom = require("boom");
 const _ = require("lodash");
 const ClosestPoint = require("../utils/closest-point");
+const timestampCompare = require("../utils/timestamp-compare");
 
-const VehicleController = async data => {
-	const { timetable, stops_loc } = await data.collection;
-	const getVehicleInformation = async (x, y, timestamp) => {
+class VehicleController {
+	constructor(data) {
+		this.data = data;
+		this.getNextVehicle = this.getNextVehicle.bind(this);
+		this.getVehicleInformation = this.getVehicleInformation.bind(this);
+		this.isLineDelayed = this.isLineDelayed.bind(this);
+	}
+
+	async getVehicleInformation(x, y, timestamp) {
+		const {stops_loc} = await this.data.collection;
 		try {
-			let cp = ClosestPoint(stops_loc, x, y);
-			let closest_point = cp.getClosestPoint();
+			const cp = ClosestPoint(stops_loc, x, y);
+			const closest_point = cp.getClosestPoint();
 
-			let { distance, points } = closest_point.closest_pair;
+			const {distance, points: [point]} = closest_point.closest_pair;
 
-			let point = points[0];
+			const stop_index = _.findIndex(stops_loc, ({x, y}) => x === point.x && y === point.y);
+			const stop = stops_loc[stop_index];
+			const {next_line} = await this.getNextVechicle(stop.stop_id, timestamp);
 
-			let stop_index = _.findIndex(stops_loc, function(o) {
-				return o.x == point.x && o.y == point.y;
-			});
-			let stop = stops_loc[stop_index];
-			let { next_line } = await getNextVechicle(stop.stop_id, timestamp);
-
-			return { next_line, distance };
+			return {next_line, distance};
 		} catch (err) {
 			throw boom.boomify(err);
 		}
-	};
+	}
 
-	const isLineDelayed = async line_id => {
-		let index = _.findIndex(timetable, function(o) {
-			return o.line_id === line_id;
-		});
+	async isLineDelayed(line_id) {
+		const {timetable} = await this.data.collection;
+		const index = _.findIndex(timetable, (o) => o.line_id === line_id);
 		if (index === -1) {
 			throw boom.boomify(new Error("Could not find line ID " + line_id));
 		}
-		let delay = timetable[index].delay;
-		let result = delay > 0;
-		return { delay, result };
-	};
+		const {delay} = timetable[index];
+		const result = delay > 0;
+		return {delay, result};
+	}
 
-	const getNextVechicle = async (stop_id, timestamp) => {
-		let vehicles = _.filter(timetable, function(tt) {
-			return _.some(tt.stops, s => {
-				return (
-					s.stop_id == stop_id &&
-          Date.parse(`01/01/2011 ${timestamp}`) <
-            Date.parse(`01/01/2011 ${s.stop_time}`)
-				);
-			});
-		});
+	async getNextVehicle(stop_id, timestamp) {
+		const {timetable} = await this.data.collection;
+		const stopAndTimestampComparator = (s) => s.stop_id = stop_id && timestampCompare(timestamp, s.stop_time);
+		const vehicles = _.filter(timetable, (tt) =>
+			_.some(tt.stops, stopAndTimestampComparator)
+		);
 
-		let next_line = [];
-		vehicles.forEach(v => {
-			let stops = _.filter(v.stops, s => {
-				return (
-					s.stop_id == stop_id &&
-          Date.parse(`01/01/2011 ${timestamp}`) <
-            Date.parse(`01/01/2011 ${s.stop_time}`)
-				);
-			});
-			next_line.push({ line_name: v.line_name, line_id: v.line_id, stops });
-		});
-		return { next_line };
-	};
+		return {
+			next_line: _.map(vehicles, (v) => ({
+				line_name: v.line_name,
+				line_id: v.line_id,
+				stops: _.filter(v.stops, stopAndTimestampComparator)
+			}))};
+	}
 
-	return { getVehicleInformation, isLineDelayed, getNextVechicle };
-};
+}
 
 module.exports = VehicleController;
