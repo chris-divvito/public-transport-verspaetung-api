@@ -21,7 +21,7 @@ class VehicleController {
 
 			const stop_index = _.findIndex(stops_loc, ({x, y}) => x === point.x && y === point.y);
 			const stop = stops_loc[stop_index];
-			const {next_line} = await this.getNextVechicle(stop.stop_id, timestamp);
+			const {next_line} = await this.getNextVehicle(stop.stop_id, timestamp);
 
 			return {next_line, distance};
 		} catch (err) {

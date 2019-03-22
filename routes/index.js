@@ -1,7 +1,7 @@
 async function routes(fastify) {
 	const data = require("../data")();
 	const VehicleController = require("../controllers/vehicleController");
-	const vehicleController = await VehicleController(data);
+	const vehicleController = new VehicleController(data);
 	const tsvalidator = require("../utils/timestamp-validator");
 
 	fastify.get("/api/find_vehicle", async (request, response) => {
@@ -49,7 +49,7 @@ async function routes(fastify) {
 			if (!stop_id) throw new Error("Please provide stop_id");
 			if (!timestamp) throw new Error("Please provide timestamp");
 			tsvalidator(timestamp);
-			let next_vehicle = await vehicleController.getNextVechicle(
+			let next_vehicle = await vehicleController.getNextVehicle(
 				stop_id,
 				timestamp
 			);
