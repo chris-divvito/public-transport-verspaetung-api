@@ -1,15 +1,15 @@
-module.exports = timestamp => {
-	const _ = require("lodash");
+const _ = require("lodash");
 
-	let timeArr = _.split(timestamp, ":");
+module.exports = timestamp => {
+	const timeArr = _.split(timestamp, ":");
 
 	if (timeArr.length !== 3) {
 		throw new Error("Please provide timestamp as HH:MM:SS");
 	}
 
-	let hour = parseInt(timeArr[0]);
-	let minute = parseInt(timeArr[1]);
-	let second = parseInt(timeArr[2]);
+	let hour = parseInt(timeArr[0], 10);
+	let minute = parseInt(timeArr[1], 10);
+	let second = parseInt(timeArr[2], 10);
 	if (isNaN(hour) || isNaN(minute) || isNaN(second))
 		throw new Error(
 			"Please provide timestamp as numeric values in the format HH:MM:SS"
