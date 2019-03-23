@@ -15,10 +15,11 @@ describe("closest point validation", () => {
 		expect(cp_op.closest_pair).to.have.property("distance");
 		expect(cp_op.closest_pair)
 			.to.have.property("distance")
-			.that.is.a("number");
+			.that.is.a("number")
+			.to.equal(1);
 
 		expect(cp_op.closest_pair)
-			.to.have.property("points")
-			.to.have.lengthOf(1);
+			.to.have.property("point")
+			.to.deep.equal({ x: "1", y: "1" });
 	});
 });

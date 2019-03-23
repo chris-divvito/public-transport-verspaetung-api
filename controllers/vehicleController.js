@@ -17,10 +17,10 @@ class VehicleController {
 			const cp = ClosestPoint(stops_loc, x, y);
 			const closest_point = cp.getClosestPoint();
 
-			const {distance, points: [point]} = closest_point.closest_pair;
-
+			const {distance, point} = closest_point.closest_pair;
 			const stop_index = _.findIndex(stops_loc, ({x, y}) => x === point.x && y === point.y);
 			const stop = stops_loc[stop_index];
+			// eslint-disable-next-line no-console
 			const {next_line} = await this.getNextVehicle(stop.stop_id, timestamp);
 
 			return {next_line, distance};
@@ -42,7 +42,8 @@ class VehicleController {
 
 	async getNextVehicle(stop_id, timestamp) {
 		const {timetable} = await this.data.collection;
-		const stopAndTimestampComparator = (s) => s.stop_id = stop_id && timestampCompare(timestamp, s.stop_time);
+		const stopAndTimestampComparator = (s) =>
+			s.stop_id === parseInt(stop_id, 10) && timestampCompare(s.stop_time, timestamp);
 		const vehicles = _.filter(timetable, (tt) =>
 			_.some(tt.stops, stopAndTimestampComparator)
 		);
@@ -52,7 +53,8 @@ class VehicleController {
 				line_name: v.line_name,
 				line_id: v.line_id,
 				stops: _.filter(v.stops, stopAndTimestampComparator)
-			}))};
+			}))
+		};
 	}
 
 }
