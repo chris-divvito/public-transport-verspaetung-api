@@ -6,5 +6,5 @@ module.exports = (vehicleController) => async (request) => {
 	assertTruthy(stop_id, "Please provide stop_id");
 	assertTruthy(timestamp, "Please provide timestamp");
 	tsvalidator(timestamp);
-	return await vehicleController.getNextVehicle(stop_id, timestamp);
+	return await vehicleController.getNextVehicle(parseInt(stop_id), timestamp);
 };

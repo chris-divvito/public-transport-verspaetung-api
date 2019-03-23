@@ -18,6 +18,7 @@ describe("/api/line_delay", () => {
 		});
 		expect(response.statusCode).to.equal(200);
 		const payload = JSON.parse(response.payload);
+
 		expect(payload)
 			.to.have.property("delay")
 			.that.equals(2);

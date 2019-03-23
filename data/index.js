@@ -1,99 +1,120 @@
-module.exports = () => {
-	const _ = require("lodash");
-	let lines, stopTimes, delays, stops;
+const csv = require("csvtojson");
+const _ = require("lodash");
+const Line = require("./Line");
+const Delay = require("./Delay");
+const Stop = require("./Stop");
+const Time = require("./Time");
 
-	const getLines = () => {
-		if (!lines) {
-			lines = readCsv("lines.csv");
-		}
-		return lines;
-	};
-	const getStopTimes = () => {
-		if (!stopTimes) {
-			stopTimes = readCsv("times.csv");
-		}
-		return stopTimes;
-	};
-	const getStops = () => {
-		if (!stops) {
-			stops = readCsv("stops.csv");
-		}
-		return stops;
-	};
-	const getDelays = () => {
-		if (!delays) {
-			delays = readCsv("delays.csv");
-		}
-		return delays;
-	};
-
-	async function readCsv(fileName) {
-		const csv = require("csvtojson");
-		const jsonObj = await csv().fromFile(__dirname + "/" + fileName);
-		return jsonObj;
+class Data {
+	constructor() {
+		this.load = this.load.bind(this);
+		this.getLines = this.getLines.bind(this);
+		this.getStopTimes = this.getStopTimes.bind(this);
+		this.getStops = this.getStops.bind(this);
+		this.getDelays = this.getDelays.bind(this);
+		this.instantiateFromCsv = this.instantiateFromCsv.bind(this);
+		this.getLineById = this.getLineById.bind(this);
+		this.getStopById = this.getStopById.bind(this);
+		this.getStopsToLines = this.getStopsToLines.bind(this);
+		this.getTimesByLineIdAndStopId = this.getTimesByLineIdAndStopId.bind(this);
 	}
 
-	const getAllData = async () => {
-		let timetable = [];
-		let lines = await getLines();
-		let stops = await getStops();
-		let delays = await getDelays();
-		let times = await getStopTimes();
+	async load() {
+		await Promise.all([
+			this.getLines(),
+			this.getStopTimes(),
+			this.getStops(),
+			this.getDelays()
+		]);
 
-		lines.forEach(line => {
-			let line_id = parseInt(line.line_id);
-			let index = _.findIndex(timetable, function(o) {
-				return o.line_id === line_id;
-			});
-			if (index === -1) {
-				timetable.push({
-					line_id,
-					line_name: line.line_name,
-					stops: []
-				});
-			} else {
-				timetable[index].line_name = line.line_name;
+		await this.getStopsToLines();
+	}
+
+
+	async getLines() {
+		if (!this.lines) {
+			this.lines = await this.instantiateFromCsv("lines.csv", Line);
+		}
+		return this.lines;
+	}
+
+	async getStopTimes() {
+		if (!this.stopTimes) {
+			this.stopTimes = await this.instantiateFromCsv("times.csv", Time);
+		}
+		return this.stopTimes;
+	}
+
+	async getStops() {
+		if (!this.stops) {
+			this.stops = await this.instantiateFromCsv("stops.csv", Stop);
+		}
+		return this.stops;
+	}
+
+	async getDelays() {
+		if (!this.delays) {
+			this.delays = await this.instantiateFromCsv("delays.csv", Delay);
+		}
+		return this.delays;
+	}
+
+	async getStopsToLines() {
+		if (!this.stopsToLines) {
+			this.stopsToLines = await this.calculateStopsToLines("delays.csv", Delay);
+		}
+		return this.stopsToLines;
+	}
+
+	async calculateStopsToLines() {
+		await this.getStopTimes();
+		const result = {};
+		for (let {stopId, lineId} of this.stopTimes) {
+			if (!result.hasOwnProperty(stopId)) {
+				result[stopId] = new Set();
 			}
-		});
+			result[stopId].add(await this.getLineById(lineId));
+		}
 
-		times.forEach(stop_time => {
-			let line_id = parseInt(stop_time.line_id);
+		return result;
+	}
 
-			let line_index = _.findIndex(timetable, function(o) {
-				return o.line_id === line_id;
-			});
+	async instantiateFromCsv(fileName, Class) {
+		const jsonObj = await csv().fromFile(__dirname + "/" + fileName);
+		return _.map(jsonObj, (data) => new Class(data, this));
+	}
 
-			if (line_index === -1) {
-				timetable.push({
-					line_id,
-					line_name: line_id,
-					stops: []
-				});
-			}
-			if (!timetable[line_index].stops) timetable[line_index].stops = [];
+	async getLineById(id) {
+		await this.getLines();
+		return _.find(this.lines, ["id", id]);
+	}
 
-			let stop_id = parseInt(stop_time.stop_id);
+	async getLineByName(name) {
+		await this.getLines();
+		return _.find(this.lines, ["name", name]);
+	}
 
-			//Add stop detail
-			timetable[line_index].stops.push({
-				stop_id,
-				stop_time: stop_time.time
-			});
-		});
+	async getStopById(id) {
+		await this.getStops();
+		return _.find(this.stops, ["id", id]);
+	}
 
-		delays.forEach(delay => {
-			let delay_time = parseInt(delay.delay);
+	async getDelayByLineName(name) {
+		await this.getDelays();
+		return _.find(this.delays, ["lineName", name]);
+	}
 
-			let delay_index = _.findIndex(timetable, function(o) {
-				return o.line_name === delay.line_name;
-			});
-			timetable[delay_index].delay = delay_time;
-		});
+	async getTimesByLineId(id) {
+		await this.getStopTimes();
+		return _.filter(this.stopTimes, ["lineId", id]);
+	}
 
-		return { timetable, stops_loc: stops };
-	};
+	async getTimesByLineIdAndStopId(lineId, stopId) {
+		await this.getStopTimes();
+		return _.filter(this.stopTimes, ({stopId: thisStopId, lineId: thisLineId}) =>
+			stopId === thisStopId && lineId === thisLineId
+		);
+	}
+}
 
-	return {
-		collection: getAllData()
-	};
-};
+module.exports = Data;

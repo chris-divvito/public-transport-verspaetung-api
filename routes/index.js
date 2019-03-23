@@ -1,4 +1,4 @@
-const data = require("../data")();
+const Data = require("../data");
 const VehicleController = require("../controllers/vehicleController");
 const errorHandling = require("./error-handing");
 const findVehicle = require("./find-vehicle");
@@ -6,7 +6,10 @@ const nextVehicle = require("./next-vehicle");
 const lineDelay = require("./line-delay");
 
 async function routes(fastify) {
+	const data = new Data();
+	await data.load();
 	const vehicleController = new VehicleController(data);
+
 	fastify.get("/api/find_vehicle", errorHandling((findVehicle(vehicleController))));
 
 	fastify.get("/api/line_delay", errorHandling(lineDelay(vehicleController)));
